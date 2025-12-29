@@ -4,6 +4,17 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, Upload, X, MapPin, Cloud } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from './ui/alert-dialog';
 import Image from 'next/image';
 
 interface FormContentProps {
@@ -12,11 +23,12 @@ interface FormContentProps {
 
 export function FormContent({ pending }: FormContentProps) {
   const [imageDataUri, setImageDataUri] = useState<string>('');
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
+  const [isCameraStarted, setIsCameraStarted] = useState(false);
   const [location, setLocation] = useState<string>('');
   const [weather, setWeather] = useState<string>('');
   const [isLoadingContext, setIsLoadingContext] = useState(false);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,26 +65,26 @@ export function FormContent({ pending }: FormContentProps) {
 
   const getUserContext = useCallback(async () => {
     setIsLoadingContext(true);
-    
+
     // Get location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
           setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-          
+
           // Get weather from Open-Meteo API
           try {
             const weatherResponse = await fetch(
               `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
             );
             const weatherData = await weatherResponse.json();
-            
+
             if (weatherData.current_weather) {
               const temp = weatherData.current_weather.temperature;
               const windSpeed = weatherData.current_weather.windspeed;
               const weatherCode = weatherData.current_weather.weathercode;
-              
+
               const weatherDescription = getWeatherDescription(weatherCode);
               setWeather(`${weatherDescription}, ${temp}°C, Wind: ${windSpeed} km/h`);
             }
@@ -80,7 +92,7 @@ export function FormContent({ pending }: FormContentProps) {
             console.error('Error fetching weather:', error);
             setWeather('Weather data unavailable');
           }
-          
+
           setIsLoadingContext(false);
         },
         (error) => {
@@ -108,14 +120,16 @@ export function FormContent({ pending }: FormContentProps) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
       });
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        setIsCameraOpen(true);
+        videoRef.current.play();
+        setIsCameraStarted(true);
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
       alert('Unable to access camera. Please check permissions.');
+      setIsCameraStarted(false);
     }
   };
 
@@ -124,7 +138,7 @@ export function FormContent({ pending }: FormContentProps) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
-      setIsCameraOpen(false);
+      setIsCameraStarted(false);
     }
   };
 
@@ -132,19 +146,35 @@ export function FormContent({ pending }: FormContentProps) {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      
+
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0);
         const dataUri = canvas.toDataURL('image/png');
         setImageDataUri(dataUri);
         stopCamera();
+        setIsCameraDialogOpen(false);
       }
     }
   };
+
+  // Handle dialog close - stop camera when dialog closes
+  const handleDialogClose = (open: boolean) => {
+    setIsCameraDialogOpen(open);
+    if (!open) {
+      stopCamera();
+    }
+  };
+
+  // Start camera when dialog opens
+  useEffect(() => {
+    if (isCameraDialogOpen && !isCameraStarted) {
+      startCamera();
+    }
+  }, [isCameraDialogOpen, isCameraStarted]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -168,7 +198,7 @@ export function FormContent({ pending }: FormContentProps) {
     <div className="space-y-6">
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-4">Capture Herb Image</h2>
-        
+
         {/* Context Information */}
         {isLoadingContext ? (
           <div className="mb-4 p-3 bg-gray-100 rounded-lg">
@@ -208,40 +238,68 @@ export function FormContent({ pending }: FormContentProps) {
           </div>
         )}
 
-        {/* Camera Modal */}
-        {isCameraOpen && (
-          <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center">
-            <div className="relative w-full max-w-2xl">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full rounded-lg"
-              />
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
-                <Button onClick={capturePhoto} size="lg">
-                  Capture Photo
-                </Button>
-                <Button onClick={stopCamera} variant="outline" size="lg">
-                  Cancel
-                </Button>
+        {/* Camera Dialog */}
+        <AlertDialog open={isCameraDialogOpen} onOpenChange={handleDialogClose}>
+          <AlertDialogContent className="max-w-4xl max-h-[90vh] w-[95vw] p-0">
+            <AlertDialogHeader className="p-6 pb-0">
+              <AlertDialogTitle>Capture Herb Image</AlertDialogTitle>
+              <AlertDialogDescription>
+                Position your camera to capture a clear image of the herb.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="px-6 pb-6">
+              <div className="relative w-full">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-auto max-h-[60vh] rounded-lg bg-black"
+                  style={{ aspectRatio: '16/9' }}
+                />
+                {!isCameraStarted && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                    <div className="text-center">
+                      <Camera className="mx-auto mb-2" size={48} />
+                      <p className="text-sm text-gray-600">Starting camera...</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        )}
+
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={stopCamera}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={capturePhoto}
+                disabled={!isCameraStarted}
+              >
+                <Camera className="mr-2" size={16} />
+                Capture Photo
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Action Buttons */}
         {!imageDataUri && (
           <div className="flex gap-4">
-            <Button
-              type="button"
-              onClick={startCamera}
-              className="flex-1"
-              disabled={pending}
-            >
-              <Camera className="mr-2" size={20} />
-              Open Camera
-            </Button>
+            <AlertDialog open={isCameraDialogOpen} onOpenChange={handleDialogClose}>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    disabled={pending}
+                  />
+                }
+              >
+                <Camera className="mr-2" size={20} />
+                Open Camera
+              </AlertDialogTrigger>
+            </AlertDialog>
             <Button
               type="button"
               onClick={() => fileInputRef.current?.click()}
