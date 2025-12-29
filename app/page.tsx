@@ -1,8 +1,6 @@
 "use client"
-import { Navbar } from "@/components/ui/navbar";
-import { createClient } from "@/lib/supabase/client";
 import { Home } from "@/components/home";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import FeaturedHerbs from "@/components/featured-herbs";
@@ -11,22 +9,7 @@ import HowItWorks from "@/components/howitworks";
 gsap.registerPlugin(ScrollTrigger);
 
 export default function Page() {
-    const supabase = createClient();
-    const [user, setUser] = useState<string | null>(null);
     const smoothScrollRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-    const getUser = async () => {
-      const { data, error } = await supabase.auth.getUser()
-      if (error) {
-        console.error(error)
-        return
-      }
-      setUser(data.user?.email ?? null)
-    }
-
-    getUser()
-  }, [supabase])
 
   useEffect(() => {
     // Setup smooth scrolling
@@ -57,7 +40,6 @@ export default function Page() {
 
 return (
     <div ref={smoothScrollRef} className="relative">
-    <Navbar user={user}/>
     <div className="smooth-scroll-section flex flex-col gap-8">
       <Home />
       <FeaturedHerbs />

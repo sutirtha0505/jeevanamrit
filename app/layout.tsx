@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { NavbarWrapper } from "@/components/navbar-wrapper";
 
 const nunitoSans = Nunito_Sans({ variable: '--font-sans' });
 
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <NavbarWrapper />
         {children}
         <Toaster />
         <ToastContainer

@@ -29,7 +29,7 @@ export function AILoadingScreen({ message = 'Analyzing herb with AI...' }: AILoa
             }}
             className="relative"
           >
-            <Loader2 className="w-16 h-16 text-primary" />
+            {/* <Loader2 className="w-16 h-16 text-primary" /> */}
             <motion.div
               animate={{
                 scale: [1, 1.2, 1],
@@ -42,7 +42,7 @@ export function AILoadingScreen({ message = 'Analyzing herb with AI...' }: AILoa
               }}
               className="absolute -top-2 -right-2"
             >
-              <Sparkles className="w-8 h-8 text-yellow-500" />
+              {/* <Sparkles className="w-8 h-8 text-yellow-500" /> */}
             </motion.div>
           </motion.div>
 

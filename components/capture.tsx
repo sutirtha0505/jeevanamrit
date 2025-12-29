@@ -17,26 +17,38 @@ const initialState: HerbInfoState = {
   success: false,
 };
 
+function FormWithStatus({
+  pending,
+  formAction,
+}: {
+  pending: boolean;
+  formAction: (payload: FormData) => void;
+}) {
+  return (
+    <form action={formAction}>
+      <FormContent pending={pending} />
+    </form>
+  );
+}
+
 function CaptureForm({
   formAction,
   state,
+  pending,
 }: {
   formAction: (payload: FormData) => void;
   state: HerbInfoState;
+  pending: boolean;
 }) {
-  const { pending } = useFormStatus();
-
   return (
     <>
       {/* AI Loading Screen */}
-      {pending && <AILoadingScreen message="Analyzing herb with Gemini AI..." />}
+      {pending && <AILoadingScreen message="Analyzing herb with Our AI..." />}
 
       <div className="grid md:grid-cols-2 gap-8">
         {/* Left Column - Form */}
         <div className="md:sticky md:top-24 md:self-start">
-          <form action={formAction}>
-            <FormContent pending={pending} />
-          </form>
+          <FormWithStatus formAction={formAction} pending={pending} />
         </div>
 
         {/* Right Column - Results */}
@@ -57,7 +69,7 @@ export default function Capture() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const lastToastStateRef = useRef<string>('');
 
-  const [state, formAction] = useActionState(getHerbInformation, initialState);
+  const [state, formAction, isPending] = useActionState(getHerbInformation, initialState);
 
   // Check authentication
   useEffect(() => {
@@ -248,6 +260,11 @@ export default function Capture() {
         draggable: true,
       });
 
+      // Reset the page after a short delay to show the success message
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+
     } catch (error) {
       console.error('Conversion error:', error);
       toast.dismiss('convert-progress');
@@ -266,25 +283,17 @@ export default function Capture() {
     }
   };
 
-  if (loading) {
-    return (
-      <div id="capture" className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="animate-spin" size={48} />
-      </div>
-    );
-  }
-
   return (
-    <div id="capture" className="min-h-screen bg-background py-12 px-4 md:px-8">
+    <div id="capture" className="min-h-screen pt-32 bg-background py-12 px-4 md:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Herb Identification</h1>
-          <p className="text-gray-600">
+          <h1 className="text-4xl font-bold mb-2 text-center">Herb Identification</h1>
+          <p className="text-gray-600 text-center">
             Capture or upload an image of an herb to identify it and learn about its properties.
           </p>
         </div>
 
-        <CaptureForm formAction={formAction} state={state} />
+        <CaptureForm formAction={formAction} state={state} pending={isPending} />
 
         {/* Convert Button */}
         {state.success && state.identification && (
