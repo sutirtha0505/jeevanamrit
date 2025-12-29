@@ -1,7 +1,6 @@
 'use client';
 
 import { useActionState, useEffect, useState, useRef } from 'react';
-import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { FormContent } from './form-content';
 import { Results } from './results';
@@ -9,9 +8,10 @@ import { AILoadingScreen } from './ai-loading-screen';
 import { getHerbInformation } from '@/app/actions';
 import { HerbInfoState } from '@/types/herb';
 import { Button } from './ui/button';
-import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, Download } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-toastify';
+import jsPDF from 'jspdf';
 
 const initialState: HerbInfoState = {
   success: false,
@@ -66,7 +66,9 @@ export default function Capture() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
   const lastToastStateRef = useRef<string>('');
 
   const [state, formAction, isPending] = useActionState(getHerbInformation, initialState);
@@ -92,6 +94,21 @@ export default function Capture() {
 
     checkUser();
   }, [router, supabase]);
+
+  // Capture the original image when analysis completes
+  useEffect(() => {
+    if (state.success && state.identification) {
+      // Try to get the uploaded image from the form
+      const imageInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (imageInput && imageInput.files && imageInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setOriginalImage(e.target?.result as string);
+        };
+        reader.readAsDataURL(imageInput.files[0]);
+      }
+    }
+  }, [state.success, state.identification]);
 
   // Show toast notifications based on state changes
   useEffect(() => {
@@ -122,6 +139,423 @@ export default function Capture() {
       }
     }
   }, [state]);
+
+  const handleDownloadPDF = async () => {
+    if (!state.success || !state.identification) {
+      toast.error('No analysis data available for PDF generation.');
+      return;
+    }
+
+    setIsDownloadingPDF(true);
+
+    try {
+      toast.info('Generating PDF report...', { toastId: 'pdf-progress' });
+
+      // Create new jsPDF instance
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 20;
+
+      // Enhanced helper function to add formatted text with markdown parsing
+      const addFormattedText = (text: string, x: number, y: number, maxWidth: number, fontSize = 10, lineHeight = 1.4) => {
+        pdf.setFontSize(fontSize);
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
+
+        for (const word of words) {
+          const testLine = currentLine + (currentLine ? ' ' : '') + word;
+          const testWidth = pdf.getTextWidth(testLine);
+
+          if (testWidth > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+
+        let currentY = y;
+        for (const line of lines) {
+          // Parse markdown formatting
+          const processedLine = line;
+          const segments = [];
+
+          // Split by markdown patterns while preserving formatting info
+          const parts = processedLine.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+
+          for (const part of parts) {
+            if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+              // Bold text
+              segments.push({ text: part.slice(2, -2), style: 'bold' });
+            } else if (part.startsWith('*') && part.endsWith('*') && part.length > 2 && !part.startsWith('**')) {
+              // Italic text
+              segments.push({ text: part.slice(1, -1), style: 'italic' });
+            } else if (part.trim()) {
+              // Normal text - handle special characters and line breaks
+              const cleanText = part.replace(/\\n/g, ' ').replace(/\\\\/g, '\\');
+              segments.push({ text: cleanText, style: 'normal' });
+            }
+          }
+
+          // Render segments with appropriate styling
+          let currentX = x;
+          for (const segment of segments) {
+            if (segment.style === 'bold') {
+              pdf.setFont('helvetica', 'bold');
+            } else if (segment.style === 'italic') {
+              pdf.setFont('helvetica', 'italic');
+            } else {
+              pdf.setFont('helvetica', 'normal');
+            }
+
+            pdf.text(segment.text, currentX, currentY);
+            currentX += pdf.getTextWidth(segment.text);
+          }
+
+          currentY += fontSize * lineHeight * 0.35;
+        }
+
+        return currentY;
+      };
+
+      // Helper function for bullet points and lists
+      const addBulletText = (text: string, x: number, y: number, maxWidth: number, fontSize = 10) => {
+        // Clean and normalize the text first
+        const cleanText = text.replace(/\n\s*\n/g, '\n').trim();
+        const bulletPoints = cleanText.split('\n').filter(line => line.trim());
+        let currentY = y;
+
+        for (const point of bulletPoints) {
+          const trimmedPoint = point.trim();
+
+          if (trimmedPoint.startsWith('-') || trimmedPoint.startsWith('•') || trimmedPoint.startsWith('*')) {
+            // Handle existing bullet points
+            const cleanPoint = trimmedPoint.replace(/^[-•*]\s*/, '');
+            if (cleanPoint) {
+              pdf.setFont('helvetica', 'normal');
+              pdf.text('•', x, currentY);
+              currentY = addFormattedText(cleanPoint, x + 8, currentY, maxWidth - 8, fontSize);
+              currentY += 3;
+            }
+          } else if (trimmedPoint.match(/^\d+\.\s/)) {
+            // Handle numbered lists
+            const numberMatch = trimmedPoint.match(/^(\d+)\.(\s*)(.*)/);
+            if (numberMatch) {
+              const [, number, , content] = numberMatch;
+              pdf.setFont('helvetica', 'normal');
+              pdf.text(`${number}.`, x, currentY);
+              currentY = addFormattedText(content, x + 12, currentY, maxWidth - 12, fontSize);
+              currentY += 3;
+            }
+          } else if (trimmedPoint) {
+            // Regular line, treat as bullet point if in a list context, otherwise as paragraph
+            if (bulletPoints.length > 1 && bulletPoints.some(p => p.trim().match(/^[-•*]/))) {
+              pdf.setFont('helvetica', 'normal');
+              pdf.text('•', x, currentY);
+              currentY = addFormattedText(trimmedPoint, x + 8, currentY, maxWidth - 8, fontSize);
+            } else {
+              currentY = addFormattedText(trimmedPoint, x, currentY, maxWidth, fontSize);
+            }
+            currentY += 3;
+          }
+        }
+
+        return currentY;
+      };
+
+      // Simple text helper for backward compatibility
+      const addText = (text: string, x: number, y: number, maxWidth: number, fontSize = 10) => {
+        return addFormattedText(text, x, y, maxWidth, fontSize);
+      };
+
+      // Header
+      pdf.setFillColor(34, 197, 94); // Green background
+      pdf.rect(0, 0, pageWidth, 30, 'F');
+
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('जीवनामृत - Herb Analysis Report', 20, 20);
+
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 20, 40);
+
+      yPosition = 45;
+      pdf.setTextColor(0, 0, 0);
+
+      // Add original image if available
+      if (originalImage) {
+        try {
+          const imgWidth = 70;
+          const imgHeight = 70;
+          const imgX = pageWidth - imgWidth - 20;
+          const imgY = yPosition;
+
+          // Add image
+          pdf.addImage(originalImage, 'JPEG', imgX, imgY, imgWidth, imgHeight);
+
+          // Add image caption
+          pdf.setFontSize(8);
+          pdf.setTextColor(128, 128, 128);
+          pdf.setFont('helvetica', 'italic');
+          const captionText = 'Original Image';
+          const captionWidth = pdf.getTextWidth(captionText);
+          pdf.text(captionText, imgX + (imgWidth - captionWidth) / 2, imgY + imgHeight + 8);
+
+          // Reset text color
+          pdf.setTextColor(0, 0, 0);
+        } catch (error) {
+          console.warn('Could not add image to PDF:', error);
+          // Add placeholder text if image fails
+          pdf.setFontSize(10);
+          pdf.setTextColor(128, 128, 128);
+          pdf.setFont('helvetica', 'italic');
+          pdf.text('[Image could not be loaded]', pageWidth - 100, yPosition + 20);
+          pdf.setTextColor(0, 0, 0);
+        }
+      }
+
+      // Basic Information Section
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(34, 197, 94);
+      yPosition = addText('IDENTIFICATION', 20, yPosition, pageWidth - 40, 18);
+
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(12);
+
+      // Draw separator line
+      pdf.setDrawColor(34, 197, 94);
+      pdf.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+      yPosition += 10;
+
+      // Common Name
+      pdf.setFont('helvetica', 'bold');
+      yPosition = addText(`Common Name: ${state.identification.commonName}`, 20, yPosition, pageWidth - 100, 14);
+      yPosition += 5;
+
+      // Latin Name
+      pdf.setFont('helvetica', 'italic');
+      yPosition = addText(`Latin Name: ${state.identification.latinName}`, 20, yPosition, pageWidth - 100, 12);
+      yPosition += 5;
+
+      // Confidence Level
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(34, 197, 94);
+      yPosition = addText(`Confidence Level: ${state.identification.confidenceLevel}`, 20, yPosition, pageWidth - 100, 12);
+      yPosition += 15;
+
+      // Check if we need a new page
+      if (yPosition > pageHeight - 50) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      // Details Section
+      if (state.details) {
+        pdf.setTextColor(34, 197, 94);
+        pdf.setFont('helvetica', 'bold');
+        yPosition = addText('DETAILED INFORMATION', 20, yPosition, pageWidth - 40, 18);
+
+        pdf.setDrawColor(34, 197, 94);
+        pdf.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+        yPosition += 10;
+
+        pdf.setTextColor(0, 0, 0);
+
+        const details = [
+          { label: 'Primary Uses', value: state.details.uses },
+          { label: 'Chemical Constituents', value: state.details.chemicalConstituents },
+          { label: 'Cultivation Methods', value: state.details.cultivation },
+          { label: 'Preservation Methods', value: state.details.preservation },
+          { label: 'Origin', value: state.details.origin },
+          { label: 'Historical Context', value: state.details.historicalContext },
+        ];
+
+        for (const detail of details) {
+          if (detail.value) {
+            // Check if we need a new page
+            if (yPosition > pageHeight - 40) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+
+            pdf.setFont('helvetica', 'bold');
+            yPosition = addText(`${detail.label}:`, 20, yPosition, pageWidth - 40, 11);
+            yPosition += 2;
+
+            pdf.setFont('helvetica', 'normal');
+            // Use enhanced formatting for bullet points and markdown
+            if (detail.value.includes('\n') && (detail.value.includes('-') || detail.value.includes('•'))) {
+              yPosition = addBulletText(detail.value, 25, yPosition, pageWidth - 45, 10);
+            } else {
+              yPosition = addFormattedText(detail.value, 20, yPosition, pageWidth - 40, 10);
+            }
+            yPosition += 6;
+          }
+        }
+      }
+
+      // Category Information
+      if (state.category) {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 50) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setTextColor(34, 197, 94);
+        pdf.setFont('helvetica', 'bold');
+        yPosition = addText('CATEGORY & PROPERTIES', 20, yPosition, pageWidth - 40, 18);
+
+        pdf.setDrawColor(34, 197, 94);
+        pdf.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+        yPosition += 10;
+
+        pdf.setTextColor(0, 0, 0);
+
+        const categories = [
+          { label: 'Category', value: state.category.category },
+          { label: 'Medicinal Properties', value: state.category.medicinalProperties },
+          { label: 'Cultivation Methods', value: state.category.cultivationMethods },
+          { label: 'Climatic Requirements', value: state.category.climaticRequirements },
+        ];
+
+        for (const category of categories) {
+          if (category.value) {
+            // Check if we need a new page
+            if (yPosition > pageHeight - 30) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+
+            pdf.setFont('helvetica', 'bold');
+            yPosition = addText(`${category.label}:`, 20, yPosition, pageWidth - 40, 11);
+            yPosition += 2;
+
+            pdf.setFont('helvetica', 'normal');
+            // Use enhanced formatting for bullet points and markdown
+            if (category.value.includes('\n') && (category.value.includes('-') || category.value.includes('•'))) {
+              yPosition = addBulletText(category.value, 25, yPosition, pageWidth - 45, 10);
+            } else {
+              yPosition = addFormattedText(category.value, 20, yPosition, pageWidth - 40, 10);
+            }
+            yPosition += 6;
+          }
+        }
+      }
+
+      // Ayurvedic Applications
+      if (state.ayurvedic?.ayurvedicApplications) {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 40) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setTextColor(34, 197, 94);
+        pdf.setFont('helvetica', 'bold');
+        yPosition = addText('AYURVEDIC APPLICATIONS', 20, yPosition, pageWidth - 40, 18);
+
+        pdf.setDrawColor(34, 197, 94);
+        pdf.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+        yPosition += 10;
+
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('helvetica', 'normal');
+
+        // Use enhanced formatting for Ayurvedic applications
+        if (state.ayurvedic.ayurvedicApplications.includes('\n') &&
+          (state.ayurvedic.ayurvedicApplications.includes('-') || state.ayurvedic.ayurvedicApplications.includes('•'))) {
+          yPosition = addBulletText(state.ayurvedic.ayurvedicApplications, 25, yPosition, pageWidth - 45, 10);
+        } else {
+          yPosition = addFormattedText(state.ayurvedic.ayurvedicApplications, 20, yPosition, pageWidth - 40, 10);
+        }
+      }
+
+      // Environmental Context
+      if (state.location || state.weather) {
+        yPosition += 15;
+
+        // Check if we need a new page
+        if (yPosition > pageHeight - 30) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setTextColor(34, 197, 94);
+        pdf.setFont('helvetica', 'bold');
+        yPosition = addText('ENVIRONMENTAL CONTEXT', 20, yPosition, pageWidth - 40, 18);
+
+        pdf.setDrawColor(34, 197, 94);
+        pdf.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+        yPosition += 10;
+
+        pdf.setTextColor(0, 0, 0);
+
+        if (state.location) {
+          pdf.setFont('helvetica', 'bold');
+          yPosition = addText('Location:', 20, yPosition, pageWidth - 40, 11);
+          yPosition += 2;
+
+          pdf.setFont('helvetica', 'normal');
+          yPosition = addText(state.location, 20, yPosition, pageWidth - 40, 10);
+          yPosition += 8;
+        }
+
+        if (state.weather) {
+          pdf.setFont('helvetica', 'bold');
+          yPosition = addText('Weather Conditions:', 20, yPosition, pageWidth - 40, 11);
+          yPosition += 2;
+
+          pdf.setFont('helvetica', 'normal');
+          yPosition = addText(state.weather, 20, yPosition, pageWidth - 40, 10);
+        }
+      }
+
+      // Footer
+      const footerY = pageHeight - 15;
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Generated by Jeevanamrit - Plant Healing Assistant', 20, footerY);
+      pdf.text(`Page 1 of ${pdf.getNumberOfPages()}`, pageWidth - 40, footerY);
+
+      // Add disclaimer
+      pdf.setFontSize(8);
+      pdf.setTextColor(255, 0, 0);
+      const disclaimer = 'Disclaimer: This information is for educational purposes only. Please consult with a qualified healthcare professional for medical advice.';
+      pdf.text(pdf.splitTextToSize(disclaimer, pageWidth - 40), 20, footerY - 5);
+
+      // Generate filename and save
+      const fileName = `${state.identification.commonName.replace(/\s+/g, '-').toLowerCase()}-analysis-${new Date().getTime()}.pdf`;
+
+      toast.dismiss('pdf-progress');
+      pdf.save(fileName);
+
+      toast.success('PDF downloaded successfully! 📄', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.dismiss('pdf-progress');
+      toast.error('Failed to generate PDF. Please try again.', {
+        position: 'top-right',
+        autoClose: 5000,
+      });
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
 
   const handleConvert = async () => {
     if (!state.success || !state.identification || !user) {
@@ -283,6 +717,14 @@ export default function Capture() {
     }
   };
 
+  if (loading) {
+    return (
+      <div id="capture" className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="animate-spin" size={48} />
+      </div>
+    );
+  }
+
   return (
     <div id="capture" className="min-h-screen pt-32 bg-background py-12 px-4 md:px-8">
       <div className="max-w-7xl mx-auto">
@@ -295,9 +737,31 @@ export default function Capture() {
 
         <CaptureForm formAction={formAction} state={state} pending={isPending} />
 
-        {/* Convert Button */}
+        {/* Action Buttons */}
         {state.success && state.identification && (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center gap-4">
+            {/* Download PDF Button */}
+            <Button
+              onClick={handleDownloadPDF}
+              disabled={isDownloadingPDF}
+              size="lg"
+              variant="outline"
+              className="min-w-50"
+            >
+              {isDownloadingPDF ? (
+                <>
+                  <Loader2 className="mr-2 animate-spin" size={20} />
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2" size={20} />
+                  Download PDF
+                </>
+              )}
+            </Button>
+
+            {/* Save Report Button */}
             <Button
               onClick={handleConvert}
               disabled={isConverting}
