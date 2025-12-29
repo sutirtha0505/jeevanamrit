@@ -281,7 +281,7 @@ export default function Capture() {
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(24);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('जीवनामृत - Herb Analysis Report', 20, 20);
+      pdf.text('Jeevanamrita - Herb Analysis Report', 20, 20);
 
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'normal');
@@ -595,7 +595,7 @@ export default function Capture() {
       // Header
       ctx.fillStyle = '#1f2937';
       ctx.font = 'bold 32px Arial';
-      ctx.fillText('🌿 Herb Analysis Report', 50, 60);
+      ctx.fillText('Herb Analysis Report', 50, 60);
 
       // Herb details
       ctx.font = 'bold 28px Arial';

@@ -68,9 +68,9 @@ export default function HowItWorks() {
   return (
     <div
       id="how-it-works"
-      className="min-h-screen flex flex-col items-center justify-center bg-color-background px-4"
+      className="min-h-screen flex flex-col items-center justify-center bg-color-background px-4 bg-primary/15"
     >
-      <h2 className="text-4xl font-bold mb-8">How It Works</h2>
+      <h1 className="text-4xl text-center md:text-8xl font-bold mb-6">How <span className="text-primary">जीवनामृत</span> Works</h1>
       <Timeline data={timelineData} />
     </div>
   );

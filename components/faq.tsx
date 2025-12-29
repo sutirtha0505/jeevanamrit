@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/accordion";
 export default function FAQ() {
   return (
-    <div className="w-full mx-auto px-4 min-h-screen flex flex-col justify-center items-center">
+    <div className="w-full mx-auto gap-8 px-4 min-h-screen flex flex-col justify-center items-center">
       <h1 className="text-4xl text-center md:text-8xl font-bold mb-6">
         Frequently Asked Questions
       </h1>

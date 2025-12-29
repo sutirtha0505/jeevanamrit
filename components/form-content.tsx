@@ -242,7 +242,7 @@ export function FormContent({ pending }: FormContentProps) {
         <AlertDialog open={isCameraDialogOpen} onOpenChange={handleDialogClose}>
           <AlertDialogContent className="max-w-4xl max-h-[90vh] w-[95vw] p-0">
             <AlertDialogHeader className="p-6 pb-0">
-              <AlertDialogTitle>Capture Herb Image</AlertDialogTitle>
+              <AlertDialogTitle><h1 className='text-center font-bold'>Capture Herb Image</h1></AlertDialogTitle>
               <AlertDialogDescription>
                 Position your camera to capture a clear image of the herb.
               </AlertDialogDescription>
@@ -268,7 +268,7 @@ export function FormContent({ pending }: FormContentProps) {
               </div>
             </div>
 
-            <AlertDialogFooter>
+            <AlertDialogFooter className='w-full'>
               <AlertDialogCancel onClick={stopCamera}>
                 Cancel
               </AlertDialogCancel>
