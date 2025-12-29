@@ -24,7 +24,7 @@ export default function FeaturedHerbs() {
       <p className="text-lg text-center max-w-2xl px-4 md:px-0">
         Explore some of the fascinating medicinal herbs our users have
         discovered and shared through the{" "}
-        <span className="font-extrabold text-primary">जीवनमृत</span> platform.
+        <span className="font-extrabold text-primary">जीवनामृत</span> platform.
       </p>
       <div style={{ position: "relative" }}>
         <ChromaGrid

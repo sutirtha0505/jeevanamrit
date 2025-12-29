@@ -67,7 +67,7 @@ export const Home = () => {
               of medicinal plants 
               <span className="font-extrabold text-primary">
                 {" "}
-                जीवनमृत 
+                जीवनामृत 
               </span>{" "}
               helps you identify local herbs and unlock the ancient Ayurvedic
               wisdom hidden in your own backyard.

@@ -35,29 +35,17 @@ export const navLinks: NavLink[] = [
     href: "/plantHeal",
   },
   {
-    id: 4,
-    label: "About",
-    type: "about",
-    href: "/about",
-  },
-  {
-    id: 5,
-    label: "Flow",
-    type: "flow",
-    href: "/flow",
-  },
-  {
-    id: 6,
-    label: "Contact",
-    type: "contact",
-    href: "/contact",
-  },
-  {
-    id: 7,
-    label: "FAQ",
-    type: "faq",
-    href: "/faq",
-  },
+      id: 4,
+      label: "Maps",
+      type: "maps",
+      href: "/maps",
+    },
+    {
+      id: 5,
+      label: "About Us",
+      type: "about",
+      href: "/about",
+    },
 ];
 
 export const herbItems: HerbItem[] = [

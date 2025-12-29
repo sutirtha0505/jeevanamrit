@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import FeaturedHerbs from "@/components/featured-herbs";
 import HowItWorks from "@/components/howitworks";
+import FAQ from "@/components/faq";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -44,6 +45,7 @@ return (
       <Home />
       <FeaturedHerbs />
       <HowItWorks />
+      <FAQ />
     </div>
     </div>
 );
