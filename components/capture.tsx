@@ -8,10 +8,10 @@ import { Results } from './results';
 import { AILoadingScreen } from './ai-loading-screen';
 import { getHerbInformation } from '@/app/actions';
 import { HerbInfoState } from '@/types/herb';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'react-toastify';
 
 const initialState: HerbInfoState = {
   success: false,
@@ -30,7 +30,7 @@ function CaptureForm({
     <>
       {/* AI Loading Screen */}
       {pending && <AILoadingScreen message="Analyzing herb with Gemini AI..." />}
-      
+
       <div className="grid md:grid-cols-2 gap-8">
         {/* Left Column - Form */}
         <div className="md:sticky md:top-24 md:self-start">
@@ -50,11 +50,11 @@ function CaptureForm({
 
 export default function Capture() {
   const router = useRouter();
-  const { toast } = useToast();
   const supabase = createClient();
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const lastToastStateRef = useRef<string>('');
 
   const [state, formAction] = useActionState(getHerbInformation, initialState);
@@ -84,39 +84,56 @@ export default function Capture() {
   // Show toast notifications based on state changes
   useEffect(() => {
     const stateKey = state.error || (state.success && state.identification?.commonName) || '';
-    
+
     // Only show toast if state has changed
     if (stateKey && stateKey !== lastToastStateRef.current) {
       lastToastStateRef.current = stateKey;
-      
+
       if (state.error) {
-        toast({
-          variant: 'destructive',
-          title: 'Analysis Failed',
-          description: state.error,
+        toast.error('Analysis Failed: ' + state.error, {
+          position: 'top-right',
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
         });
       } else if (state.success && state.identification) {
-        toast({
-          title: 'Analysis Complete',
-          description: `${state.identification.commonName} has been identified.`,
+        toast.success(`Analysis Complete! ${state.identification.commonName} has been successfully identified.`, {
+          position: 'top-right',
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
         });
       }
     }
-  }, [state, toast]);
+  }, [state]);
 
   const handleConvert = async () => {
     if (!state.success || !state.identification || !user) {
-      toast({
-        variant: 'destructive',
-        title: 'No Data to Convert',
-        description: 'Please complete an analysis first.',
+      toast.error('No Data to Convert - Please complete an herb analysis first.', {
+        position: 'top-right',
+        autoClose: 3000,
       });
       return;
     }
 
     setIsConverting(true);
+    setUploadProgress(0);
+
+    // Show progress toast
+    const progressToastId = toast.loading('Preparing your herb report...', {
+      position: 'top-right',
+    });
 
     try {
+      // Step 1: Generate report
+      toast.dismiss(progressToastId);
+      toast.info('Generating report...', { autoClose: false, toastId: 'convert-progress' });
+      setUploadProgress(25);
+
       // Generate a simple canvas (in production, use html2canvas for full report)
       const canvas = document.createElement('canvas');
       canvas.width = 800;
@@ -125,26 +142,55 @@ export default function Capture() {
 
       if (!ctx) throw new Error('Could not create canvas context');
 
-      // Simple report rendering (enhance this in production)
+      // Enhanced report rendering
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'black';
-      ctx.font = 'bold 32px Arial';
-      ctx.fillText('Herb Analysis Report', 50, 50);
-      ctx.font = '24px Arial';
-      ctx.fillText(state.identification.commonName, 50, 100);
-      ctx.font = 'italic 18px Arial';
-      ctx.fillText(state.identification.latinName, 50, 130);
-      ctx.font = '16px Arial';
-      ctx.fillText(`Confidence: ${state.identification.confidenceLevel}`, 50, 160);
 
-      // Convert to blob
+      // Header
+      ctx.fillStyle = '#1f2937';
+      ctx.font = 'bold 32px Arial';
+      ctx.fillText('🌿 Herb Analysis Report', 50, 60);
+
+      // Herb details
+      ctx.font = 'bold 28px Arial';
+      ctx.fillText(state.identification.commonName, 50, 120);
+      ctx.font = 'italic 20px Arial';
+      ctx.fillStyle = '#6b7280';
+      ctx.fillText(state.identification.latinName, 50, 150);
+
+      // Confidence badge
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText(`Confidence: ${state.identification.confidenceLevel}`, 50, 180);
+
+      // Additional details
+      if (state.details?.uses) {
+        ctx.fillStyle = '#1f2937';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText('Primary Uses:', 50, 220);
+        ctx.font = '14px Arial';
+        const usesLines = state.details.uses.substring(0, 200) + '...';
+        ctx.fillText(usesLines, 50, 250);
+      }
+
+      // Timestamp
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '12px Arial';
+      ctx.fillText(`Generated on ${new Date().toLocaleDateString()}`, 50, canvas.height - 20);
+
+      // Step 2: Convert to blob
+      toast.update('convert-progress', { render: 'Converting report to image...' });
+      setUploadProgress(50);
+
       const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob!), 'image/png');
+        canvas.toBlob((blob) => resolve(blob!), 'image/png', 0.9);
       });
 
-      // Upload to Supabase Storage
-      const fileName = `${state.identification.commonName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
+      // Step 3: Upload to Supabase
+      toast.update('convert-progress', { render: 'Uploading to cloud storage...' });
+      setUploadProgress(75);
+
+      const fileName = `${state.identification.commonName.replace(/\\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
       const filePath = `${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -161,7 +207,11 @@ export default function Capture() {
         data: { publicUrl },
       } = supabase.storage.from('herb-images').getPublicUrl(filePath);
 
-      // Save to database
+      // Step 4: Save to database
+      toast.dismiss('convert-progress');
+      toast.info('Saving to your profile...', { autoClose: false, toastId: 'save-progress' });
+      setUploadProgress(90);
+
       const { error: dbError } = await supabase.from('herb_analyses').insert({
         user_id: user.id,
         user_email: user.email,
@@ -186,19 +236,33 @@ export default function Capture() {
 
       if (dbError) throw dbError;
 
-      toast({
-        title: 'Report Converted Successfully',
-        description: 'Your herb analysis report has been saved to your profile.',
+      // Success!
+      setUploadProgress(100);
+      toast.dismiss('save-progress');
+      toast.success('Report saved successfully! 🎉 Your herb analysis has been saved to your profile.', {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
       });
+
     } catch (error) {
       console.error('Conversion error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Conversion Failed',
-        description: error instanceof Error ? error.message : 'Failed to save report.',
+      toast.dismiss('convert-progress');
+      toast.dismiss('save-progress');
+      toast.error(`Failed to save report: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
       });
     } finally {
       setIsConverting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -229,12 +293,18 @@ export default function Capture() {
               onClick={handleConvert}
               disabled={isConverting}
               size="lg"
-              className="min-w-50"
+              className="min-w-50 relative overflow-hidden"
             >
               {isConverting ? (
                 <>
                   <Loader2 className="mr-2 animate-spin" size={20} />
-                  Converting...
+                  Saving Report...
+                  {uploadProgress > 0 && (
+                    <div
+                      className="absolute bottom-0 left-0 h-1 bg-white/30 transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  )}
                 </>
               ) : (
                 <>

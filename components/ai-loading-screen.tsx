@@ -87,33 +87,49 @@ export function AILoadingScreen({ message = 'Analyzing herb with AI...' }: AILoa
           {/* AI Processing Steps */}
           <div className="w-full space-y-2">
             {[
-              'Identifying herb species',
-              'Analyzing medicinal properties',
-              'Gathering Ayurvedic information',
-            ].map((step, index) => (
+              { step: 'Capturing image details', delay: 0 },
+              { step: 'Identifying herb species with Gemini AI', delay: 0.3 },
+              { step: 'Analyzing medicinal properties', delay: 0.6 },
+              { step: 'Gathering cultivation information', delay: 0.9 },
+              { step: 'Finding Ayurvedic applications', delay: 1.2 },
+            ].map(({ step, delay }, index) => (
               <motion.div
                 key={step}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{
-                  delay: index * 0.3,
+                  delay: delay,
                   duration: 0.5,
                 }}
-                className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400"
+                className="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400"
               >
                 <motion.div
                   animate={{
                     scale: [1, 1.2, 1],
+                    backgroundColor: ['#10b981', '#22c55e', '#10b981'],
                   }}
                   transition={{
-                    duration: 1,
+                    duration: 1.5,
                     repeat: Infinity,
                     ease: 'easeInOut',
-                    delay: index * 0.3,
+                    delay: delay,
                   }}
-                  className="w-2 h-2 bg-green-500 rounded-full"
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: '#10b981' }}
                 />
-                <span>{step}</span>
+                <span className="flex-1">{step}</span>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    delay: delay + 0.5,
+                  }}
+                  className="text-xs text-green-500 font-medium"
+                >
+                  ✓
+                </motion.div>
               </motion.div>
             ))}
           </div>
