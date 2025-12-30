@@ -21,6 +21,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "जीवनामृत",
   description: "जीवनामृत - A platform for plant health and wellness",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
