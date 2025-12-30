@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { NavbarWrapper } from "@/components/navbar-wrapper";
+import Footer from "@/components/footer";
 
 const nunitoSans = Nunito_Sans({ variable: '--font-sans' });
 
@@ -38,6 +39,7 @@ export default function RootLayout({
       >
         <NavbarWrapper />
         {children}
+        <Footer />
         <Toaster />
         <ToastContainer
           position="top-right"

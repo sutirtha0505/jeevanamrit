@@ -46,3 +46,4 @@ capture.md
 certificates
 supabase/data-new.sql
 supabase/data.sql
+supabase/contact-messages-schema.sql
