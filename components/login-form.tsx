@@ -68,6 +68,25 @@ export function LoginForm({
       setIsLoading(false)
     }
   }
+  // Google OAuth Login
+  const handleGoogleLogin = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/oauth?next=/`,
+        },
+      })
+
+      if (error) throw error
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
@@ -75,7 +94,7 @@ export function LoginForm({
         <CardHeader>
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>
-            Login with your email or continue with GitHub
+            Login with your email or continue with GitHub or Google
           </CardDescription>
         </CardHeader>
 
@@ -89,6 +108,16 @@ export function LoginForm({
             disabled={isLoading}
           >
             {isLoading ? 'Redirecting...' : 'Continue with GitHub'}
+          </Button>
+          {/* Login with Google */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-4"
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Redirecting...' : 'Continue with Google'}
           </Button>
 
           <div className="relative my-4">
