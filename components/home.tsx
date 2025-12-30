@@ -1,7 +1,9 @@
+"use client";
 import { Tiro_Devanagari_Hindi } from "next/font/google";
 import BlurText from "./BlurText";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
 
 const tiroDevanagari = Tiro_Devanagari_Hindi({
   weight: ["400"],
@@ -9,6 +11,7 @@ const tiroDevanagari = Tiro_Devanagari_Hindi({
 });
 
 export const Home = () => {
+  const router = useRouter();
   const [showSecondText, setShowSecondText] = useState(false);
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export const Home = () => {
               wisdom hidden in your own backyard.
             </p>
 
-            <Button className="text-lg mt-8 px-6 py-3" size="lg">
+            <Button className="text-lg mt-8 px-6 py-3" size="lg" onClick={() => router.push("/maps")}>
               Explore the आयुर्वेद World
             </Button>
 

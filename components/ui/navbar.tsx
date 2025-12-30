@@ -37,7 +37,7 @@ export const Navbar = ({ user }: { user: string | null }) => {
         <div className="fixed top-4 left-0 right-0 z-50 mx-4 md:mx-8">
             <div className="rounded-3xl bg-white/50 backdrop-blur-sm border-b border-white/20 shadow-sm flex justify-between items-center h-16 py-4 px-4 md:px-6">
             {/* Logo */}
-            <div className="cursor-pointer">
+            <div className="cursor-pointer" onClick={() => router.push('/')}>
                 <h1 className="text-lg md:text-xl font-bold text-primary">जीवनामृत</h1>
             </div>
             
