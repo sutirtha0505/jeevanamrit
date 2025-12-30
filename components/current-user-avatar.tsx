@@ -16,7 +16,7 @@ export const CurrentUserAvatar = () => {
   return (
     <Avatar>
       {profileImage && <AvatarImage src={profileImage} alt={initials} />}
-      <AvatarFallback>{initials}</AvatarFallback>
+      <AvatarImage src="https://avatar.iran.liara.run/public/boy" alt={initials} />
     </Avatar>
   )
 }
