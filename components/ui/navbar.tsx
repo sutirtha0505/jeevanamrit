@@ -6,10 +6,32 @@ import { useRouter } from "next/navigation";
 import { CurrentUserAvatar } from '@/components/current-user-avatar'
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { createClient } from '@/lib/supabase/client';
 
 export const Navbar = ({ user }: { user: string | null }) => {
     const router = useRouter();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    const handleAuthAction = async () => {
+        if (user) {
+            // Logout
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            router.refresh();
+        } else {
+            // Login
+            router.push('/auth/login');
+        }
+        setIsMobileMenuOpen(false);
+    };
+    const handleProfilePageNavigation = () => {
+        if (user) {
+            router.push('/profile/' + user);
+        } else {
+            router.push('/auth/login');
+        }
+        setIsMobileMenuOpen(false);
+    }
 
     return (
         <div className="fixed top-4 left-0 right-0 z-50 mx-4 md:mx-8">
@@ -34,8 +56,12 @@ export const Navbar = ({ user }: { user: string | null }) => {
             
             {/* Desktop Actions */}
             <div className="hidden md:flex gap-4 items-center">
-                <CurrentUserAvatar />
-                <Button onClick={() => router.push('/auth/login')} variant="default">
+                {user && (
+                    <div onClick={handleProfilePageNavigation} className="cursor-pointer">
+                        <CurrentUserAvatar />
+                    </div>
+                )}
+                <Button onClick={handleAuthAction} variant="default">
                     {user ? 'Logout' : 'Login'}
                 </Button>
             </div>
@@ -69,12 +95,13 @@ export const Navbar = ({ user }: { user: string | null }) => {
                     ))}
                 </ul>
                 <div className="flex gap-3 items-center pt-3 border-t border-gray-200">
-                    <CurrentUserAvatar />
+                    {user && (
+                        <div onClick={handleProfilePageNavigation} className="cursor-pointer">
+                            <CurrentUserAvatar />
+                        </div>
+                    )}
                     <Button 
-                        onClick={() => {
-                            router.push('/auth/login');
-                            setIsMobileMenuOpen(false);
-                        }} 
+                        onClick={handleAuthAction}
                         variant="default"
                         className="flex-1"
                     >

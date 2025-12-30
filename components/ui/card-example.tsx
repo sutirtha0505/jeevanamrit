@@ -1,4 +1,3 @@
-import { Example } from "@/components/example";
 import {
   Card,
   CardDescription,
@@ -12,16 +11,21 @@ interface CardExampleProps {
   imageAlt?: string;
   cardTitle: string;
   cardDescription: string;
+  onClick?: () => void;
 }
 
 export default function CardExample({ 
   imageSrc, 
   imageAlt = "Card image", 
   cardTitle, 
-  cardDescription 
+  cardDescription,
+  onClick
 }: CardExampleProps) {
   return (
-    <Card className="relative w-full max-w-sm overflow-hidden pt-0">
+    <Card 
+      className="relative w-full max-w-sm overflow-hidden pt-0 cursor-pointer hover:shadow-lg transition-shadow" 
+      onClick={onClick}
+    >
       <div className="absolute inset-0 z-30 aspect-video opacity-50" />
       <Image
         src={imageSrc}

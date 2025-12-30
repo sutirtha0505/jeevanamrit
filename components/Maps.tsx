@@ -105,12 +105,6 @@ export default function Maps() {
     <div className="w-full min-h-screen py-12 px-4 md:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex flex-col gap-6 justify-center items-center">
-          <h2 className="text-3xl md:text-5xl font-bold text-center">
-            Herb Location Map
-          </h2>
-          <p className="text-gray-600 text-center max-w-2xl">
-            Select an herb to view all recorded locations where it has been identified
-          </p>
           
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger
@@ -167,7 +161,7 @@ export default function Maps() {
           {value && selectedHerbLocations.length > 0 ? (
             <MapView locations={selectedHerbLocations} />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <div className="w-full h-full flex items-center justify-center bg-primary/10">
               <div className="text-center">
                 <MapPin className="mx-auto mb-4 text-gray-400" size={48} />
                 <p className="text-gray-500">

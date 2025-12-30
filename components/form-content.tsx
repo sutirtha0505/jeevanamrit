@@ -19,9 +19,10 @@ import Image from 'next/image';
 
 interface FormContentProps {
   pending: boolean;
+  onImageCapture?: (imageDataUri: string) => void;
 }
 
-export function FormContent({ pending }: FormContentProps) {
+export function FormContent({ pending, onImageCapture }: FormContentProps) {
   const [imageDataUri, setImageDataUri] = useState<string>('');
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [isCameraStarted, setIsCameraStarted] = useState(false);
@@ -155,6 +156,7 @@ export function FormContent({ pending }: FormContentProps) {
         context.drawImage(video, 0, 0);
         const dataUri = canvas.toDataURL('image/png');
         setImageDataUri(dataUri);
+        onImageCapture?.(dataUri);
         stopCamera();
         setIsCameraDialogOpen(false);
       }
@@ -181,7 +183,9 @@ export function FormContent({ pending }: FormContentProps) {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImageDataUri(reader.result as string);
+        const dataUri = reader.result as string;
+        setImageDataUri(dataUri);
+        onImageCapture?.(dataUri);
       };
       reader.readAsDataURL(file);
     }
@@ -196,7 +200,7 @@ export function FormContent({ pending }: FormContentProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
+      <Card className="p-6 min-h-64 ">
         <h2 className="text-2xl font-bold mb-4">Capture Herb Image</h2>
 
         {/* Context Information */}

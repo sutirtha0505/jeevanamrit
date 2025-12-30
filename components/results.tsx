@@ -33,7 +33,7 @@ export function Results({ state, pending }: ResultsProps) {
 
   if (!state.success || !state.identification) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64 bg-primary/10">
         <p className="text-gray-500 text-center">
           {state.error || 'Capture or upload an herb image to begin analysis.'}
         </p>

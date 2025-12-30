@@ -37,15 +37,15 @@ export const Timeline = ({ data }: { data: TimelineEntry[] }) => {
         {/* --- Vertical Center Line --- */}
         <div
           style={{ height: trackHeight }}
-          className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px]
+          className="absolute left-1/2 -translate-x-1/2 top-0 w-0.5
           bg-[linear-gradient(to_bottom,var(--tw-gradient-stops))]
           from-transparent via-neutral-200 dark:via-neutral-700 to-transparent
-          [mask-image:linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]"
+          mask-[linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]"
         >
           <motion.div
             style={{ height: heightTransform, opacity: opacityTransform }}
-            className="absolute inset-x-0 top-0 w-[2px] rounded-full
-            bg-gradient-to-t from-emerald-500 via-green-500 to-transparent"
+            className="absolute inset-x-0 top-0 w-0.5 rounded-full
+            bg-linear-to-t from-emerald-500 via-green-500 to-transparent"
           />
         </div>
 

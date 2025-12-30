@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState, useRef } from 'react';
+import { useActionState, useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { FormContent } from './form-content';
 import { Results } from './results';
@@ -20,13 +20,15 @@ const initialState: HerbInfoState = {
 function FormWithStatus({
   pending,
   formAction,
+  onImageCapture,
 }: {
   pending: boolean;
   formAction: (payload: FormData) => void;
+  onImageCapture?: (imageDataUri: string) => void;
 }) {
   return (
     <form action={formAction}>
-      <FormContent pending={pending} />
+      <FormContent pending={pending} onImageCapture={onImageCapture} />
     </form>
   );
 }
@@ -35,10 +37,12 @@ function CaptureForm({
   formAction,
   state,
   pending,
+  onImageCapture,
 }: {
   formAction: (payload: FormData) => void;
   state: HerbInfoState;
   pending: boolean;
+  onImageCapture?: (imageDataUri: string) => void;
 }) {
   return (
     <>
@@ -48,7 +52,7 @@ function CaptureForm({
       <div className="grid md:grid-cols-2 gap-8">
         {/* Left Column - Form */}
         <div className="md:sticky md:top-24 md:self-start">
-          <FormWithStatus formAction={formAction} pending={pending} />
+          <FormWithStatus formAction={formAction} pending={pending} onImageCapture={onImageCapture} />
         </div>
 
         {/* Right Column - Results */}
@@ -95,20 +99,10 @@ export default function Capture() {
     checkUser();
   }, [router, supabase]);
 
-  // Capture the original image when analysis completes
-  useEffect(() => {
-    if (state.success && state.identification) {
-      // Try to get the uploaded image from the form
-      const imageInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (imageInput && imageInput.files && imageInput.files[0]) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setOriginalImage(e.target?.result as string);
-        };
-        reader.readAsDataURL(imageInput.files[0]);
-      }
-    }
-  }, [state.success, state.identification]);
+  // Callback to receive image from FormContent
+  const handleImageCapture = useCallback((imageDataUri: string) => {
+    setOriginalImage(imageDataUri);
+  }, []);
 
   // Show toast notifications based on state changes
   useEffect(() => {
@@ -575,74 +569,34 @@ export default function Capture() {
     });
 
     try {
-      // Step 1: Generate report
+      // Step 1: Get the original uploaded image
       toast.dismiss(progressToastId);
-      toast.info('Generating report...', { autoClose: false, toastId: 'convert-progress' });
+      toast.info('Preparing image...', { autoClose: false, toastId: 'convert-progress' });
       setUploadProgress(25);
 
-      // Generate a simple canvas (in production, use html2canvas for full report)
-      const canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 1000;
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) throw new Error('Could not create canvas context');
-
-      // Enhanced report rendering
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Header
-      ctx.fillStyle = '#1f2937';
-      ctx.font = 'bold 32px Arial';
-      ctx.fillText('Herb Analysis Report', 50, 60);
-
-      // Herb details
-      ctx.font = 'bold 28px Arial';
-      ctx.fillText(state.identification.commonName, 50, 120);
-      ctx.font = 'italic 20px Arial';
-      ctx.fillStyle = '#6b7280';
-      ctx.fillText(state.identification.latinName, 50, 150);
-
-      // Confidence badge
-      ctx.fillStyle = '#10b981';
-      ctx.font = 'bold 18px Arial';
-      ctx.fillText(`Confidence: ${state.identification.confidenceLevel}`, 50, 180);
-
-      // Additional details
-      if (state.details?.uses) {
-        ctx.fillStyle = '#1f2937';
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText('Primary Uses:', 50, 220);
-        ctx.font = '14px Arial';
-        const usesLines = state.details.uses.substring(0, 200) + '...';
-        ctx.fillText(usesLines, 50, 250);
+      if (!originalImage) {
+        throw new Error('No image found. Please capture or upload an image first.');
       }
 
-      // Timestamp
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '12px Arial';
-      ctx.fillText(`Generated on ${new Date().toLocaleDateString()}`, 50, canvas.height - 20);
+      // Convert data URI to blob
+      const response = await fetch(originalImage);
+      const imageBlob = await response.blob();
+      
+      // Determine file extension from blob type or default to jpg
+      const mimeType = imageBlob.type || 'image/jpeg';
+      const fileExtension = mimeType.split('/')[1] || 'jpg';
 
-      // Step 2: Convert to blob
-      toast.update('convert-progress', { render: 'Converting report to image...' });
+      // Step 2: Upload to Supabase
+      toast.update('convert-progress', { render: 'Uploading to cloud storage...' });
       setUploadProgress(50);
 
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob!), 'image/png', 0.9);
-      });
-
-      // Step 3: Upload to Supabase
-      toast.update('convert-progress', { render: 'Uploading to cloud storage...' });
-      setUploadProgress(75);
-
-      const fileName = `${state.identification.commonName.replace(/\\s+/g, '-').toLowerCase()}-${Date.now()}.png`;
+      const fileName = `${state.identification.commonName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.${fileExtension}`;
       const filePath = `${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('herb-images')
-        .upload(filePath, blob, {
-          contentType: 'image/png',
+        .upload(filePath, imageBlob, {
+          contentType: mimeType,
           upsert: false,
         });
 
@@ -653,10 +607,10 @@ export default function Capture() {
         data: { publicUrl },
       } = supabase.storage.from('herb-images').getPublicUrl(filePath);
 
-      // Step 4: Save to database
+      // Step 3: Save to database
       toast.dismiss('convert-progress');
       toast.info('Saving to your profile...', { autoClose: false, toastId: 'save-progress' });
-      setUploadProgress(90);
+      setUploadProgress(75);
 
       const { error: dbError } = await supabase.from('herb_analyses').insert({
         user_id: user.id,
@@ -726,16 +680,16 @@ export default function Capture() {
   }
 
   return (
-    <div id="capture" className="min-h-screen pt-32 bg-background py-12 px-4 md:px-8">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-background py-12 px-4 md:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-center">Herb Identification</h1>
+          <h1 className="text-4xl md:text-8xl font-bold text-center italic">Herb Identification</h1>
           <p className="text-gray-600 text-center">
             Capture or upload an image of an herb to identify it and learn about its properties.
           </p>
         </div>
 
-        <CaptureForm formAction={formAction} state={state} pending={isPending} />
+        <CaptureForm formAction={formAction} state={state} pending={isPending} onImageCapture={handleImageCapture} />
 
         {/* Action Buttons */}
         {state.success && state.identification && (

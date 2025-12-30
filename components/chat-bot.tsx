@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Bot, User, Copy, RotateCcw, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCurrentUserImage } from '@/hooks/use-current-user-image';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -66,9 +67,10 @@ interface MessageItemProps {
     message: Message;
     onCopy: (content: string) => void;
     onRegenerate?: () => void;
+    userImage?: string | null;
 }
 
-function MessageItem({ message, onCopy, onRegenerate }: MessageItemProps) {
+function MessageItem({ message, onCopy, onRegenerate, userImage }: MessageItemProps) {
     const isUser = message.role === 'user';
 
     return (
@@ -77,24 +79,29 @@ function MessageItem({ message, onCopy, onRegenerate }: MessageItemProps) {
             animate={{ opacity: 1, y: 0 }}
             className={`flex gap-3 p-4 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
         >
-            <Avatar className="w-8 h-8 flex-shrink-0">
-                <AvatarFallback className={isUser ? 'bg-blue-100 dark:bg-blue-900' : 'bg-primary/10'}>
-                    {isUser ? (
-                        <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    ) : (
-                        <Bot className="w-4 h-4 text-primary" />
-                    )}
-                </AvatarFallback>
+            <Avatar className="w-8 h-8 shrink-0 ">
+                {isUser && userImage ? (
+                        <img src={userImage} alt="User" className="w-full h-full object-cover rounded-full" />
+        
+                ) : (
+                    <AvatarFallback className={isUser ? 'bg-blue-100 dark:bg-blue-900' : 'bg-primary/10'}>
+                        {isUser ? (
+                            <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        ) : (
+                            <Bot className="w-4 h-4 text-primary" />
+                        )}
+                    </AvatarFallback>
+                )}
             </Avatar>
 
             <div className={`flex-1 max-w-[80%] ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
                 <Card
                     className={`p-3 max-w-full ${isUser
-                        ? 'bg-blue-500 text-white ml-auto border-blue-500'
+                        ? 'bg-sidebar-primary text-white ml-auto border-blue-500'
                         : 'bg-muted/50 border-muted'
                         }`}
                 >
-                    <div className="text-sm leading-relaxed whitespace-pre-wrap break-words prose prose-sm max-w-none dark:prose-invert">
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-words prose prose-sm max-w-none dark:prose-invert">
                         {/* Render markdown-style content */}
                         <div dangerouslySetInnerHTML={{
                             __html: message.content
@@ -106,9 +113,9 @@ function MessageItem({ message, onCopy, onRegenerate }: MessageItemProps) {
                 </Card>
 
                 <div className={`flex items-center gap-1 mt-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <span className="text-xs text-muted-foreground">
-                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    </p>
 
                     {!isUser && (
                         <div className="flex items-center gap-1">
@@ -145,11 +152,12 @@ function MessageItem({ message, onCopy, onRegenerate }: MessageItemProps) {
 }
 
 export default function ChatBot() {
+    const userImage = useCurrentUserImage();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
             role: 'assistant',
-            content: '🌿 **Namaste!** I\'m **Aranya**, your AI plant healing assistant. My name means "forest" in Sanskrit.\n\nI specialize in:\n• **Plant identification** and botanical knowledge\n• **Ayurvedic medicine** and herbal remedies\n• **Natural treatments** for plant diseases\n• **Traditional healing** wisdom and practices\n\nHow can I help you explore the healing power of plants today?',
+            content: '🌿 ** नमस्ते !** I\'m ** अरण्य **, your AI plant healing assistant. My name means "forest" in Sanskrit.\n\nI specialize in:\n• **Plant identification** and botanical knowledge\n• **Ayurvedic medicine** and herbal remedies\n• **Natural treatments** for plant diseases\n• **Traditional healing** wisdom and practices\n\nHow can I help you explore the healing power of plants today?',
             timestamp: new Date(),
         },
     ]);
@@ -256,16 +264,16 @@ export default function ChatBot() {
     };
 
     return (
-        <div className="flex flex-col h-screen max-h-screen bg-background py-20">
+        <div className="flex flex-col min-h-screen bg-background py-20">
             {/* Header */}
-            <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="0 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
                 <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
                             <Bot className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                            <h1 className="font-semibold text-lg">Aranya - Plant Healing Assistant</h1>
+                            <h1 className="font-semibold text-lg">अरण्य - Plant Healing Assistant</h1>
                             <p className="text-sm text-muted-foreground">AI-powered Ayurvedic & Botanical Guide</p>
                         </div>
                     </div>
@@ -284,6 +292,7 @@ export default function ChatBot() {
                                 key={message.id}
                                 message={message}
                                 onCopy={handleCopy}
+                                userImage={userImage}
                                 onRegenerate={
                                     message.role === 'assistant' &&
                                         message.id === messages[messages.length - 1]?.id
@@ -300,7 +309,7 @@ export default function ChatBot() {
             </div>
 
             {/* Input */}
-            <div className="flex-shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
                 <div className="max-w-4xl mx-auto p-4">
                     <div className="flex gap-2">
                         <div className="flex-1 relative">
@@ -310,7 +319,7 @@ export default function ChatBot() {
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyPress}
                                 placeholder="Ask Aranya about plants, herbs, Ayurveda, natural healing..."
-                                className="min-h-[44px] max-h-[200px] pr-12 resize-none"
+                                className="min-h-11 max-h-50 pr-12 resize-none"
                                 disabled={isLoading}
                             />
                             <Button
