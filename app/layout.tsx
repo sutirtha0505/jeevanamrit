@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   title: "जीवनामृत",
   description: "जीवनामृत - A platform for plant health and wellness",
   icons: {
-    icon: '/favicon.ico',
+    icon: '/android-chrome-192x192.png',
   },
 };
 
