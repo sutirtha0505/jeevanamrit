@@ -7,7 +7,8 @@ const nextConfig: NextConfig = {
     domains: [
       "images.unsplash.com",
       "plus.unsplash.com",
-      "xvdlbqniwgpidfftcuoa.supabase.co"
+      "xvdlbqniwgpidfftcuoa.supabase.co",
+      "avatar.iran.liara.run"
     ],
   },
 };
