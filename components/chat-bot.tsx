@@ -264,9 +264,9 @@ export default function ChatBot() {
     };
 
     return (
-        <div className="flex flex-col max-h-screen bg-background py-20">
+        <div className="flex flex-col h-screen bg-background py-20">
             {/* Header */}
-            <div className="0 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+            <div className="sticky top-16 border-b bg-primary/25 backdrop-blur z-10">
                 <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
@@ -284,7 +284,7 @@ export default function ChatBot() {
             </div>
 
             {/* Messages */}
-            <div className="bg-yellow-200 overflow-y-auto px-4 space-y-2">
+            <div className="flex-1 overflow-y-auto px-4 space-y-2">
                 <div className="max-w-4xl mx-auto">
                     <AnimatePresence>
                         {messages.map((message) => (
@@ -309,8 +309,8 @@ export default function ChatBot() {
             </div>
 
             {/* Input */}
-            <div className="border-t backdrop-blur supports-backdrop-filter:bg-background/60">
-                <div className="bg-red-900 max-w-4xl mx-auto p-4">
+            <div className="border-t bottom-0 backdrop-blur static h-10">
+                <div className="max-w-4xl mx-auto p-4">
                     <div className="flex gap-2">
                         <div className="flex-1 relative">
                             <Textarea
